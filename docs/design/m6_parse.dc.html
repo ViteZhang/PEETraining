@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>6.4 资料解析详情</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#1A1A1A}a:hover{color:#1A1A1A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; position: relative; font-family: 'Noto Sans SC','PingFang SC',sans-serif; color: #1A1A1A">
+<main style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px; padding: 44px 22px 28px; box-sizing: border-box; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: center; min-height: 44px"><a href="m6_library.dc.html" aria-label="返回" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-left: -12px; color: #1A1A1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a><span style="font-size: 15px; font-weight: 500">文学理论课堂笔记.pdf</span><span style="width: 44px"></span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><div style="display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'DM Sans',sans-serif; font-size: 24px; font-weight: 600">63</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6E6E6E">识别知识点</span></div><div style="display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'DM Sans',sans-serif; font-size: 24px; font-weight: 600">56</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6E6E6E"><span style="width: 8px; height: 8px; border-radius: 4px; background: #6FA8DC; flex-shrink: 0"></span>已挂载</span></div><div style="display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'DM Sans',sans-serif; font-size: 24px; font-weight: 600">{{left}}</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6E6E6E"><span style="width: 8px; height: 8px; border-radius: 4px; background: #F2956B; flex-shrink: 0"></span>待确认</span></div></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #F7F7F5; border-radius: 14px"><span style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1A1A1A; text-decoration: none; background: #FFFFFF; font-weight: 700">待确认</span><span style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1A1A1A; text-decoration: none; background: transparent; font-weight: 400">已挂载</span><span style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #1A1A1A; text-decoration: none; background: transparent; font-weight: 400">原文</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{items}}" as="x" hint-placeholder-count="3"><section style="padding: 14px 16px; border-radius: 18px; border: 1px solid #EFEFEF; display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 15px; font-weight: 700">{{x.name}}</span><sc-if value="{{x.confirmed}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: #E4F4EB; color: #1F7A4D">已确认</span></sc-if></span>
+<span style="font-size: 12px; line-height: 1.55; color: #6E6E6E">{{x.hint}}</span>
+<sc-if value="{{x.pending}}" hint-placeholder-val="{{ true }}"><div style="display: flex; gap: 8px"><button onClick="{{x.confirm}}" style="height: 34px; padding: 0 16px; border-radius: 17px; border: none; background: #1A1A1A; font-family: inherit; font-size: 13px; color: #FFFFFF; cursor: pointer">按建议确认</button><button style="height: 34px; padding: 0 14px; border-radius: 17px; border: none; background: #F7F7F5; font-family: inherit; font-size: 13px">换位置</button><button style="height: 34px; padding: 0 14px; border-radius: 17px; border: none; background: #F7F7F5; font-family: inherit; font-size: 13px">不需要</button></div></sc-if>
+</section></sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<a href="m6_library.dc.html" style="display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 25px; background: #1A1A1A; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 500">其余全部按建议确认</a></main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const self = this;
+    const done = (this.state && this.state.done) || {};
+    const items = [
+      { id: 'a', name: '「问题小说」', hint: '建议放入：中国现当代文学 › 第一个十年 › 小说' },
+      { id: 'b', name: '「海派文学的市民性」', hint: '框架中没有对应知识点，建议新建在：第二个十年 › 海派' },
+      { id: 'c', name: '「京派小说的田园牧歌」', hint: '建议放入：中国现当代文学 › 第二个十年 › 京派' }
+    ];
+    var left = 0;
+    items.forEach(function (it) { if (!done[it.id]) { left += 1; } });
+    return {
+      left: left + 4,
+      items: items.map(function (it) {
+        const ok = !!done[it.id];
+        return {
+          name: it.name,
+          hint: it.hint,
+          pending: !ok,
+          confirmed: ok,
+          confirm: function () {
+            const copy = Object.assign({}, done);
+            copy[it.id] = true;
+            self.setState({ done: copy });
+          }
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>
