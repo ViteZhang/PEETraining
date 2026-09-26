@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# 安装脚本白名单：esbuild 需要；@parcel/watcher、unrs-resolver 自带预编译二进制，不执行
+allowBuilds:
+  esbuild: true
+  '@parcel/watcher': false
+  unrs-resolver: false

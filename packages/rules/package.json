@@ -1,0 +1,16 @@
+{
+  "name": "@peetraining/rules",
+  "version": "0.0.0",
+  "private": true,
+  "description": "掌握度、复习、今日计划等业务规则纯函数（无 IO）",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  }
+}
