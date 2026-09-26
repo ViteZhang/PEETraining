@@ -9,14 +9,15 @@ Sep 24, 2026 · @Z
 ### 1.1 开工前准备
 
 1. 按附录创建仓库根目录的 `CLAUDE.md`
-2. 把 PRD、技术规格和本施工文档导出为 Markdown（本文存为 docs/construction.md），放进仓库 `docs/prd.md`、`docs/tech-spec.md`
-3. 把视觉稿每个页面截图放进 `docs/screens/`，文件名用页面编号，如 `4.7-批改结果.png`
+2. 把 PRD、技术规格和本施工文档导出为 Markdown，分别存为仓库 `docs/prd.md`、`docs/tech-spec.md`、`docs/construction.md`
+3. 视觉稿源码放在 `docs/design/`：`INDEX.md` 为页面编号 → 文件索引，`NOTES.md` 为各页交互说明，每页一个 `.dc.html`（390×844）
+4. 文档审阅中发现的矛盾与缺失记录在 `docs/open-questions.md`，团队结论先改进三份文档，再交给 Claude Code 实现
 
 ### 1.2 交给 Claude Code 的提示词模板
 
 ```markdown
 执行任务卡 T26「主观题批改」。
-1. 先读 CLAUDE.md，再读卡片「参考」中列出的文档章节和截图
+1. 先读 CLAUDE.md，再读卡片「参考」中列出的文档章节和 docs/design 中对应页面
 2. 先输出实现计划（改哪些文件、新增哪些表或函数、怎么测试），等我确认
 3. 按计划实现，只改本卡范围内的代码
 4. 补齐单元测试，跑通 pnpm typecheck、pnpm test
@@ -25,15 +26,15 @@ Sep 24, 2026 · @Z
 
 ### 1.3 任务卡格式
 
-每张卡包含：**依赖**（必须先完成的卡）、**参考**（PRD / 技术规格章节与页面编号）、**交付**（要写出来的东西）、**验收**（怎么判断做完了）。一张卡一个分支、一个合并请求；验收不通过不合并。
+每张卡包含：**依赖**（必须先完成的卡）、**参考**（PRD / 技术规格章节与页面编号）、**交付**（要写出来的东西）、**验收**（怎么判断做完了）。一张卡一个分支（命名 `card/T01-<英文短名>`）、一个合并请求；CI（GitHub Actions）通过且验收通过才合并。
 
 ### 1.4 验收分工
 
 | 谁 | 验什么 |
 | --- | --- |
 | Claude Code | 类型检查、单元测试、按验收条目自检 |
-| 技术同学 | 代码合并、迁移执行、在 dev build 上跑通主流程 |
-| 产品同学 | 对照截图与 PRD 验页面、交互与异常状态 |
+| 技术同学 | 代码合并、迁移执行、在 dev build 上用真机跑通主流程 |
+| 产品同学 | 对照 docs/design 视觉稿与 PRD 验页面、交互与异常状态 |
 | 运营同学 | 涉及内容与 AI 质量的卡（T10、T26、T34、T37 等）看评测结果与真实样例 |
 
 ## 2. 阶段总览
@@ -74,7 +75,7 @@ flowchart LR
 
 - 依赖：无
 - 参考：技术规格 1、8（目录结构）
-- 交付：pnpm 单仓库；`apps/mobile`（Expo Router + TS，四个空 Tab）；`apps/worker`；`packages/shared`、`rules`、`ai`、`ui-tokens`；统一 tsconfig、ESLint、Prettier；CI 跑 typecheck、lint、test；EAS 配置 dev / preview / production 三个 profile
+- 交付：pnpm 单仓库；`apps/mobile`（Expo Router + TS，四个空 Tab）；`apps/worker`；`packages/shared`、`rules`、`ai`、`ui-tokens`；统一 tsconfig、ESLint、Prettier；Node 22 LTS（`.nvmrc` + `engines`）；工作区包名前缀 `@peetraining/`；GitHub Actions CI 跑 typecheck、lint、test；App 名称「考研Training」、iOS Bundle ID `peetraining.dreamerlab.cn`（均暂定）；EAS 配置 dev / preview / production 三个 profile
 - 验收：`pnpm install && pnpm typecheck && pnpm test` 通过；dev build 装到 iOS 与安卓真机能打开并切换四个 Tab
 
 #### T02 设计令牌与基础组件
@@ -200,7 +201,7 @@ flowchart LR
 - 依赖：T17
 - 参考：PRD 模块 2；页面 2.1、2.1b、2.1c、2.2（2.1d、2.1e 在 T40 接入）
 - 交付：首页状态判定与三种状态 UI；倒计时；「以为会了」卡片；快捷入口；掌握度条；今日训练完成页（周历、连续天数、掌握度变化前 3）；下拉刷新
-- 验收：用数据构造出三种状态，页面与截图一致；「以为会了」为 0 时隐藏；跨天后计划与倒计时刷新
+- 验收：用数据构造出三种状态，页面与视觉稿一致；「以为会了」为 0 时隐藏；跨天后计划与倒计时刷新
 
 #### T19 知识点树与搜索
 
@@ -449,7 +450,7 @@ flowchart LR
 
 ### 12.2 状态与异常
 
-- [ ] 首页五种状态均可构造并与截图一致
+- [ ] 首页五种状态均可构造并与视觉稿一致
 - [ ] 每个列表页都有空状态；每个 AI 等待页都有超时文案与失败重试
 - [ ] 断网作答后恢复网络，答案补交且不重复
 - [ ] 答题、写作文中途杀进程，重进后草稿恢复
@@ -474,7 +475,7 @@ flowchart LR
 
 ## 附录：CLAUDE.md
 
-复制下方全文，保存为仓库根目录的 `CLAUDE.md`。Claude Code 每次启动都会读取它；项目约定有变化时同步更新这份文件。
+仓库根目录 `CLAUDE.md` 的当前版本如下（以仓库文件为准）。Claude Code 每次启动都会读取它；项目约定有变化时同步更新这份文件与本附录。
 
 ```markdown
 # 刷题精灵 · 项目上下文
@@ -482,27 +483,38 @@ flowchart LR
 考研专业课 AI 刷题 App。帮考生把专业课资料变成可练、可测、可追踪的知识体系。
 首期试点：海南大学 · 中国语言文学（预设路径）；其他院校专业上传资料生成专属知识库（自建路径）。
 
+## 应用标识
+- App 名称（暂定）：考研Training
+- iOS Bundle ID（暂定）：peetraining.dreamerlab.cn；Android 包名待定
+- 工作区包名前缀：@peetraining/*（如 @peetraining/shared、@peetraining/rules）
+- EAS 账号 / 组织：待补充
+
 ## 依据文档（有冲突时：业务规则以 PRD 为准，技术实现以技术规格为准）
 - docs/prd.md            产品需求（功能、规则、商业化、指标）
 - docs/tech-spec.md      技术规格（架构、数据模型、接口、AI 层、算法）
 - docs/construction.md   施工文档（任务卡与验收）
-- docs/screens/          视觉稿截图，文件名 = 页面编号，如 4.7-批改结果.png
+- docs/design/INDEX.md   视觉稿索引：页面编号 → HTML 源文件
+- docs/design/NOTES.md   每个页面的交互说明
+- docs/design/*.dc.html  每个页面的视觉稿源码（390×844，内联样式）。读它获取布局、文案、颜色；
+                         不要照搬 HTML，用 ui-tokens 和基础组件以 React Native 重写；
+                         support.js 不在仓库，{{}} 模板的选项与文案看文件内 <script> 数据
+- docs/open-questions.md 文档审阅清单：矛盾、缺失与团队结论（未决项不得自行发明规则）
 
 ## 技术栈
 - 客户端：Expo（React Native）+ TypeScript + Expo Router；TanStack Query + Zustand + MMKV
 - 后端：Supabase（Postgres + RLS、Storage、Edge Functions）
-- 任务：apps/worker（Node 20 + TS），队列 pgmq：q_interactive / q_batch
+- 任务：apps/worker（Node 22 LTS + TS），队列 pgmq：q_interactive / q_batch
 - AI：只通过 packages/ai 调用，按「能力」调用，不直接调用任何模型 SDK
 
-## 目录
-- apps/mobile      App
-- apps/worker      异步任务（解析、建库、批改、推送、定时任务）
-- supabase/        migrations（SQL，唯一的改库方式）、functions、seed
-- packages/shared  类型、zod schema、错误码
-- packages/rules   掌握度 / 复习 / 今日计划等纯函数（客户端与服务端共用）
-- packages/ai      AI 能力：prompt.md + schema.ts + config.ts + examples/
+## 目录（运行环境统一 Node 22 LTS，CI 用 GitHub Actions）
+- apps/mobile        App
+- apps/worker        异步任务（解析、建库、批改、推送、定时任务）
+- supabase/          migrations（SQL，唯一的改库方式）、functions、seed
+- packages/shared    类型、zod schema、错误码
+- packages/rules     掌握度 / 复习 / 今日计划等纯函数（客户端与服务端共用）
+- packages/ai        AI 能力：prompt.md + schema.ts + config.ts + examples/
 - packages/ui-tokens 设计令牌
-- evals/           AI 评测集与脚本
+- evals/             AI 评测集与脚本
 
 ## 常用命令
 - pnpm install / pnpm typecheck / pnpm lint / pnpm test
@@ -523,17 +535,21 @@ flowchart LR
 9. 每个页面都要处理：加载、空、错误、AI 生成中、额度不足（如适用）
 10. 主观题、作文、整卷的作答每 5 秒存 MMKV 草稿；所有写接口带 idempotency_key
 11. 日志不记录用户资料原文与作答原文
+12. 不确定的地方先问，不要自行发明业务规则
 
 ## 约定
-- 代码标识符用英文，界面文案用简体中文；文案以截图为准
+- 代码标识符用英文，界面文案用简体中文；文案以视觉稿为准
 - 函数返回 { ok, data } 或 { ok: false, error: { code, message, detail } }
 - 时间统一存 UTC，业务日期（今日计划、额度周期）按北京时间计算
-- 页面组件放 apps/mobile/app，按 PRD 模块分组；复用组件放 apps/mobile/components
+- 页面放 apps/mobile/app，按 PRD 模块分组；复用组件放 apps/mobile/components
 - 提交信息格式：T26: 主观题批改结果页
+- 一张任务卡一个分支，分支名 card/T01-<英文短名>；验收通过再合并
+- 真机验收由团队完成：每张卡结束时列出真机验证步骤
+- 文档里未决的问题见 docs/open-questions.md，已决结论先改进文档再实现
 
 ## 完成一张卡前自检
 - [ ] pnpm typecheck && pnpm test 通过
 - [ ] 对照卡片「验收」逐条自检并写出结果
-- [ ] 对照截图检查页面与各状态
+- [ ] 对照 docs/design 中对应页面检查布局、文案与各状态
 - [ ] 列出需要人工在真机上验证的步骤
 ```

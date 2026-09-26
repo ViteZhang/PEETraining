@@ -14,10 +14,11 @@ Sep 24, 2026 · @Z
 | 鉴权 | Supabase Auth + 自定义登录函数签发 JWT | 国内短信、一键登录、微信登录需自接 |
 | 文件存储 | Supabase Storage（私有桶） | 资料、手写稿照片按用户隔离 |
 | 业务接口 | Supabase Edge Functions（TypeScript） | 轻量同步接口：提交作答、领取计划、兑换等 |
-| 任务服务 | Node.js 20 + TypeScript worker，队列用 Postgres 内的 pgmq | 解析、建库、批改等长任务，可单独扩容 |
+| 任务服务 | Node.js 22 LTS + TypeScript worker，队列用 Postgres 内的 pgmq | 解析、建库、批改等长任务，可单独扩容 |
 | AI 接口层 | 服务端统一模块，按能力路由到不同模型 | 可切换供应商，正式版切到国内已备案模型 |
 | OCR / 语音 | 云服务 API（选型见第 9 节） | 手写识别、语音转写 |
 | 构建发布 | EAS Build（安卓 APK、iOS TestFlight） | 无需本地原生编译环境 |
+| 持续集成 | GitHub Actions | 与代码仓库同处，跑 typecheck、lint、test、迁移检查、评测 |
 
 ### 1.1 关键默认假设
 
@@ -442,10 +443,17 @@ returning used;
 
 ## 8. 客户端架构
 
-单仓库（pnpm workspaces）管理全部代码，类型在客户端、Edge Functions、Worker 之间共享。
+单仓库（pnpm workspaces）管理全部代码，类型在客户端、Edge Functions、Worker 之间共享。工作区内部包统一命名为 `@peetraining/<包名>`（如 `@peetraining/shared`、`@peetraining/rules`）；Node 版本统一 22 LTS，用 `.nvmrc` 与 `engines` 字段锁定。
+
+| 应用标识 | 值 |
+| --- | --- |
+| App 名称 | 考研Training（暂定） |
+| iOS Bundle ID | peetraining.dreamerlab.cn（暂定） |
+| Android 包名 | 待定 |
+| EAS 账号 / 组织 | 待补充 |
 
 ```markdown
-shuati/
+PEETraining/
 ├── apps/
 │   ├── mobile/            # Expo App
 │   └── worker/            # Node 任务服务
@@ -563,7 +571,7 @@ shuati/
 
 ### 11.1 发布流程
 
-1. 合并到 main → CI 跑类型检查、单元测试（packages/rules 必须全绿）、数据库迁移检查
+1. 合并到 main → CI（GitHub Actions）跑类型检查、单元测试（packages/rules 必须全绿）、数据库迁移检查
 2. 改动涉及 packages/ai → 自动跑评测集，任一指标低于门槛则阻止发布（见第 12 节）
 3. 部署 staging：执行迁移、部署 Edge Functions 与 Worker、出 preview 包，团队验收
 4. 部署 prod：迁移 → 函数 → Worker → 客户端；客户端强制更新时在 `app_versions` 表标记最低版本
