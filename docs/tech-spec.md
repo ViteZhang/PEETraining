@@ -1,4 +1,4 @@
-# 刷题精灵 技术规格文档 v1
+# 考研Training 技术规格文档 v1
 
 Sep 24, 2026 · @Z
 
@@ -14,10 +14,11 @@ Sep 24, 2026 · @Z
 | 鉴权 | Supabase Auth + 自定义登录函数签发 JWT | 国内短信、一键登录、微信登录需自接 |
 | 文件存储 | Supabase Storage（私有桶） | 资料、手写稿照片按用户隔离 |
 | 业务接口 | Supabase Edge Functions（TypeScript） | 轻量同步接口：提交作答、领取计划、兑换等 |
-| 任务服务 | Node.js 20 + TypeScript worker，队列用 Postgres 内的 pgmq | 解析、建库、批改等长任务，可单独扩容 |
+| 任务服务 | Node.js 22 LTS + TypeScript worker，队列用 Postgres 内的 pgmq | 解析、建库、批改等长任务，可单独扩容 |
 | AI 接口层 | 服务端统一模块，按能力路由到不同模型 | 可切换供应商，正式版切到国内已备案模型 |
 | OCR / 语音 | 云服务 API（选型见第 9 节） | 手写识别、语音转写 |
 | 构建发布 | EAS Build（安卓 APK、iOS TestFlight） | 无需本地原生编译环境 |
+| 持续集成 | GitHub Actions | 与代码仓库同处，跑 typecheck、lint、test、迁移检查、评测 |
 
 ### 1.1 关键默认假设
 
@@ -110,7 +111,7 @@ flowchart TD
 | packs | id, school\_id, major\_id, version, status | 知识框架包，按版本发布 |
 | subjects | id, pack\_id?, owner\_id?, code?, name, kind（knowledge / writing）, sort | 两者恰好一个非空 |
 | tree\_nodes | id, subject\_id, parent\_id?, level（branch / chapter）, name, sort, origin（preset / material / ai） | 板块与章节 |
-| knowledge\_points | id, subject\_id, node\_id?, owner\_id?, name, original\_text, source\_ref（jsonb：material\_id + page 或书名 + 页码）, ai\_explain?, exam\_freq, origin, status | node\_id 为空 = 未分类 |
+| knowledge\_points | id, subject\_id, node\_id?, owner\_id?, name, original\_text, source\_ref（jsonb：material\_id + page 或书名 + 页码）, ai\_explain?, exam\_freq, origin, status | node\_id 为空 = 未分类；exam\_freq 只存预设考频，用户上传真题产生的考频写 user\_kp\_freq，读取时相加；多个出处见 kp\_sources |
 | scoring\_points | id, kp\_id, sort, text, keywords（text\[\]） | 批改与挖空依据 |
 | kp\_overrides | user\_id, kp\_id, patch（jsonb）, updated\_at | 用户对预设知识点的修改，读取时合并 |
 
@@ -131,11 +132,11 @@ flowchart TD
 | profiles | user\_id, phone, nickname, avatar, wechat\_unionid?, apple\_sub?, status, deletion\_requested\_at? | 账号 |
 | study\_settings | user\_id, path（preset / custom）, school\_id, major\_id, stage（sprint / base）, exam\_date, exam\_date\_manual, daily\_minutes, weekly\_essay\_goal, remind\_time, notify（jsonb）, onboarding\_step | 备考设置与引导进度 |
 | user\_subjects | user\_id, subject\_id, sort | 用户正在学的科目 |
-| user\_kp\_state | user\_id, kp\_id, mastery（0–100）, state（none / learning / firm / done）, self\_rating?, self\_rated\_at?, next\_review\_at?, interval\_idx, correct\_dates（date\[\]）, last\_attempt\_at | 掌握度，仅服务端写 |
+| user\_kp\_state | user\_id, kp\_id, mastery（0–100）, state（none / learning / firm / done）, self\_rating?, self\_rated\_at?, next\_review\_at?, interval\_idx, correct\_dates（date\[\]）, last\_attempt\_at, recite\_next\_at?, recite\_interval\_idx | 掌握度，仅服务端写；recite\_\* 为背诵队列与背诵复习日（PRD 7.4） |
 | sessions | id, user\_id, kind（daily / custom / wrong / diag / paper / recite）, config（jsonb）, question\_ids, cursor, status, started\_at, finished\_at | 一组练习 |
 | attempts | id, user\_id, session\_id?, question\_id, input\_mode（text / voice / photo）, answer\_text, image\_paths?, is\_correct?, score?, revealed, duration\_s, status（submitted / grading / graded / failed / pending\_quota） | 每次作答 |
 | gradings | id, attempt\_id, result（jsonb：逐采分点判定）, score, model, prompt\_version, latency\_ms, recheck\_of?, created\_at | 批改结果，复核另起一条 |
-| disputes | id, grading\_id, reason, note?, status（open / rechecked / manual / closed） | 批改异议 |
+| disputes | id, grading\_id?, essay\_grading\_id?, reason, note?, status（open / rechecked / manual / closed） | 批改异议，主观题与作文二选一 |
 | wrong\_items | user\_id, question\_id, kp\_id, first\_wrong\_at, last\_wrong\_at, correct\_dates（date\[\]）, removed\_at?, removed\_reason? | 错题本 |
 | recite\_logs | id, user\_id, kp\_id, mode（cloze / write / speak）, rating（no / fuzzy / yes）, coverage?, created\_at | 背诵记录 |
 | daily\_plans | user\_id, plan\_date, items（jsonb）, done（jsonb）, generated\_at | 今日计划 |
@@ -165,6 +166,22 @@ flowchart TD
 | content\_reports | id, user\_id, target\_type（kp / question）, target\_id, reason, note, status | 内容报错 |
 | feedbacks | id, user\_id, type, content, images, context（jsonb）, status, reply? | 意见反馈 |
 | devices | user\_id, platform, push\_token, app\_version, last\_seen\_at | 推送与设备管理 |
+
+### 3.6 审阅结论新增的表
+
+| 表 | 关键字段 | 说明 |
+| --- | --- | --- |
+| mastery\_events | id, user\_id, kp\_id, kind, delta, mastery\_after, source\_id?, created\_at | 掌握度变化流水：2.2 变化前 3、看板本周变化、北极星指标 |
+| kp\_views | user\_id, kp\_id, first\_viewed\_at, last\_viewed\_at | 浏览记录，用于「学习中」判定 |
+| user\_kp\_freq | user\_id, kp\_id, freq, years（int\[\]） | 用户上传真题产生的考频，不改共享的预设考频 |
+| kp\_sources | id, kp\_id, user\_id?, material\_id?, page?, book?, book\_page? | 知识点出处（多出处合并），也记录用户资料挂到预设知识点的关联 |
+| writing\_methods | id, subject\_id, name, dimension（五维之一）, points（jsonb）, sort | 3.6 写作方法要点及其对应维度 |
+| model\_essays | id, subject\_id, topic\_id?, title, body, outline（jsonb）, annotations（jsonb）, source（original / licensed） | 5.6 范文 |
+| material\_favorites | user\_id, material\_lib\_id, created\_at | 素材收藏 |
+| exam\_calendar | year, exam\_start\_date, exam\_end\_date, announced | 按年份配置初试日期，驱动倒计时与冲刺卡 / 考季卡到期 |
+| deleted\_phones | phone\_hash, deleted\_at, expires\_at | 注销后 30 天内禁止同号注册，只存哈希 |
+
+施工卡按需新增的基础表（在该卡计划中列出结构确认后建）：`feature_flags`（T04）、`idempotency_keys` 与限流计数（T04）、`sms_codes` 与发送计数（T11）、`legal_docs` 与 `user_consents`（T13）、`redeem_attempts`（T42）、`admin_users` 与 `admin_audit_logs`（T50）。
 
 另有四张系统表：`ai_calls`（AI 调用日志，见 6.1）、`rule_params`（规则参数，见第 7 节）、`app_versions`（最低版本与最新版本，见 11.2）、`events`（埋点事件，字段见 PRD 11.2）。
 
@@ -208,7 +225,8 @@ flowchart TD
 | answer-reveal | 看答案 / 参考答案 | question\_id | 参考答案 + 采分点 |
 | grading-dispute | 批改异议并入队复核 | grading\_id, reason, note | dispute |
 | self-rate | 知识点自评 | kp\_id, rating | state |
-| recite-rate | 背诵自评或提交默写 / 口述文本 | kp\_id, mode, rating 或 text | coverage + next\_review |
+| kp-explain | 取 AI 解读：命中缓存直接返回，否则入队 explain\_kp，结果经 Realtime 回推 | kp\_id | explain 或 job\_id |
+| recite-rate | 背诵自评或提交默写 / 口述文本；compare\_recite 在函数内同步调用（≤ 3 秒） | kp\_id, mode, rating 或 text | coverage + next\_review |
 | paper-start / paper-save / paper-submit | 整卷开始、暂存、交卷 | paper\_id / answers | session / job\_id |
 | essay-submit | 提交作文（文本或图片）并入队批改 | topic\_id, text 或 image\_paths | essay\_id |
 | upload-sign | 获取资料或照片的上传签名 URL | kind, filename, pages? | url, path |
@@ -244,6 +262,7 @@ flowchart TD
 | detect\_questions | batch | 真题类资料解析完成 | questions、papers、exam\_freq | 5 分钟 / 2 次 |
 | gen\_questions | batch | 今日计划缺题 / 预生成 | questions（source = ai） | 2 分钟 / 2 次 |
 | gen\_diag | interactive | 自建路径 diag-start | 10 道摸底题 | 30 秒 / 1 次 |
+| explain\_kp | interactive | kp-explain 未命中缓存 | knowledge\_points.ai\_explain（预设）或用户覆盖 | 10 秒 / 1 次 |
 | push\_send | batch | 各业务事件 | 推送 + messages | 10 秒 / 3 次 |
 
 ### 5.2 资料解析与建库管线
@@ -364,16 +383,17 @@ function applyEvent(s: KpState, e: MasteryEvent, today: string): KpState {
     case 'reveal': m -= 10; break
     case 'recite': m += { no: -8, fuzzy: 2, yes: 8 }[e.rating]; break
   }
-  const correct = isCorrect(e)                       // 客观题答对、主观题 ratio ≥ 0.8、背诵「记住了」
+  const correct = isCorrect(e)                       // 客观题答对、主观题 ratio ≥ 0.8；背诵不计入
   const next = { ...s, mastery: clamp(m, 0, 100) }
   if (correct) next.correctDates = addUnique(s.correctDates, today)
   next.state = deriveState(next, today)
-  Object.assign(next, schedule(next, e, today))
+  if (e.kind === 'recite') Object.assign(next, scheduleRecite(next, e, today))   // 只动背诵复习日
+  else if (e.kind !== 'self_rate') Object.assign(next, schedule(next, e, today)) // 自评不排期
   return next
 }
 ```
 
-自评只在从未作答时设初值；已有作答记录后，自评只写 `self_rating` 用于「以为会了」判断，不改 M。
+自评只在从未作答时设初值（可多次，以最近一次为准）；已有作答记录后，自评只写 `self_rating` 用于「以为会了」判断，不改 M。背诵不算作答（不置 hasAttempt）。一道题关联多个知识点时，对 question\_kps 中每个知识点分别调用 applyEvent。
 
 ### 7.2 状态判定
 
@@ -393,13 +413,15 @@ function deriveState(s: KpState, today: string): State {
 ```ts
 const STEPS = [1, 3, 7, 15, 30]
 function schedule(s: KpState, e: MasteryEvent, today: string) {
-  const r = outcome(e)                               // 'wrong' | 'fuzzy' | 'right'
+  const r = outcome(e)                               // 客观：对 right / 错 wrong；主观：ratio < 0.5 wrong，0.5–0.79 fuzzy，≥ 0.8 right；reveal → wrong
   if (r === 'wrong') return { intervalIdx: 0, nextReviewAt: addDays(today, 1) }
   if (r === 'fuzzy') return { intervalIdx: s.intervalIdx, nextReviewAt: addDays(today, 2) }
   const idx = Math.min(s.intervalIdx + 1, STEPS.length - 1)
   return { intervalIdx: idx, nextReviewAt: addDays(today, STEPS[idx]) }
 }
 ```
+
+首次答对：intervalIdx 从 0 前进到 1，即 3 天（PRD 7.3）。`scheduleRecite` 用同一规则写 `reciteIntervalIdx / reciteNextAt`。
 
 逾期衰减由定时任务执行：`mastery -= 3 × 逾期天数（当日增量）`，并重新 `deriveState`。
 
@@ -411,10 +433,11 @@ function buildPlan(u: UserCtx, kps: KpWithState[], pool: QuestionPool): Plan {
   const ratio = u.stage === 'sprint'
     ? { review: .35, weak: .45, recite: .20, fresh: 0 }
     : { review: .30, weak: .30, recite: .20, fresh: .20 }
-  const weight = (k) => (1 + 0.5 * k.examFreq) * (100 - k.mastery)
+  const m = (k) => k.state === 'none' ? (u.diagBranchScore[k.branchId] ?? 0) : k.mastery   // 未学习用板块摸底预估分
+  const weight = (k) => (1 + 0.5 * k.examFreq) * (100 - m(k))
   const review = kps.filter(k => k.nextReviewAt <= u.today).sort(byOverdueThenFreq)
-  const weak = kps.filter(k => !review.includes(k) && k.state !== 'none').sort((a, b) => weight(b) - weight(a))
-  const recite = kps.filter(k => k.reciteDue <= u.today)
+  const weak = kps.filter(k => !review.includes(k)).sort((a, b) => weight(b) - weight(a))
+  const recite = kps.filter(k => k.reciteNextAt && k.reciteNextAt <= u.today)
   const fresh = kps.filter(k => k.state === 'none').sort(byChapterOrder)
   return fill(budget, ratio, { review, weak, recite, fresh }, pool)  // 按单题用时装箱，优先真题，缺题记录待生成
 }
@@ -422,7 +445,8 @@ function buildPlan(u: UserCtx, kps: KpWithState[], pool: QuestionPool): Plan {
 
 - 单题用时：客观题 1、名词解释 3、简答 6、论述 12、背诵 1 分钟
 - 一组内客观题在前、主观题在后；同一知识点当日只出现一次
-- 缺题时写入待生成列表，由 `gen_questions` 在后台补齐；补齐前用客观题替代
+- 缺题时写入待生成列表，由 `gen_questions` 在后台补齐；补齐前用客观题替代；后台补题不计用户 AI 出题额度
+- 基础期的 fresh 在展示上并入「薄弱查漏」数字（PRD 7.4）
 
 ### 7.5 额度计数
 
@@ -442,12 +466,20 @@ returning used;
 
 ## 8. 客户端架构
 
-单仓库（pnpm workspaces）管理全部代码，类型在客户端、Edge Functions、Worker 之间共享。
+单仓库（pnpm workspaces）管理全部代码，类型在客户端、Edge Functions、Worker 之间共享。`packages/shared`、`rules`、`ai` 写成不依赖 Node 或 Deno 专属 API 的纯 TS（ESM），Edge Functions 构建时把用到的共享包打包进函数，Worker 与客户端直接按工作区依赖引用。工作区内部包统一命名为 `@peetraining/<包名>`（如 `@peetraining/shared`、`@peetraining/rules`）；Node 版本统一 22 LTS，用 `.nvmrc` 与 `engines` 字段锁定。
+
+| 应用标识 | 值 |
+| --- | --- |
+| App 名称 | 考研Training（暂定） |
+| iOS Bundle ID | peetraining.dreamerlab.cn（暂定） |
+| Android 包名 | peetraining.dreamerlab.cn（暂定，与 iOS 一致） |
+| EAS 账号 / 组织 | 待补充 |
 
 ```markdown
-shuati/
+PEETraining/
 ├── apps/
 │   ├── mobile/            # Expo App
+│   ├── admin/             # 运营后台（Web，见 8.4）
 │   └── worker/            # Node 任务服务
 ├── supabase/
 │   ├── migrations/        # 建表、视图、RLS、RPC（SQL）
@@ -488,7 +520,7 @@ shuati/
 
 ### 8.3 设计令牌与组件
 
-令牌从设计规范板导出到 `packages/ui-tokens`，组件只能引用令牌，不写裸色值。
+令牌从设计规范板导出到 `packages/ui-tokens`，组件只能引用令牌，不写裸色值。下表为规范板中的主令牌；T02 另从全部视觉稿统计实际使用的字号、颜色、圆角与间距（含信息色 #2F5FB3、间距 4 / 8 / 12 / 16 / 22 / 24），合并相近值后补全令牌表并评审。
 
 | 令牌 | 值 |
 | --- | --- |
@@ -501,6 +533,16 @@ shuati/
 
 基础组件清单：Button（primary / secondary / text / danger / disabled / loading）、Chip（掌握状态、分类、筛选、信息）、Card、ListRow、StatNumber、MasteryBar、Segmented、Switch、OptionItem、OtpInput、AnswerEditor、SheetModal、Dialog、Toast、Skeleton、AiProgress、EmptyState、ErrorState、TabBar、TopBar、StepBar。所有可点区域不小于 44 × 44。
 
+### 8.4 运营后台（简易版）
+
+首期即按正式版标准做一个简易 Web 后台，避免上线后返工（审阅结论 D11）。
+
+- 位置：`apps/admin`，React + Vite + TypeScript，复用 `@peetraining/shared` 的类型与 zod schema
+- 鉴权：Supabase Auth 登录，`admin_users` 表登记运营账号与角色（viewer / operator / admin）
+- 写操作一律走 `admin-*` Edge Functions（service role 执行，校验角色，写 `admin_audit_logs`）；后台不直连受控表写入
+- 功能：协议正文与版本、会员价格与档位、`rule_params`、`exam_calendar`、`app_versions`、`feature_flags`、兑换码批量生成与导出、内容报错审核、批改人工复核、意见反馈回复（经消息中心）、用户查询（只读）
+- 部署：静态站点，与 staging / prod 各自对应
+
 ## 9. 第三方集成
 
 所有第三方都通过服务端适配层接入，客户端只接必须在端上运行的 SDK。表中「候选」为常见方案，最终以团队选型为准（见第 13 节）。
@@ -512,7 +554,7 @@ shuati/
 | 微信登录 | 客户端 SDK + auth-wechat | 微信开放平台移动应用 | 需开放平台账号与应用审核；以 unionid 关联 |
 | Apple 登录 | expo-apple-authentication + auth-apple | Sign in with Apple | 服务端校验 identity token，以 sub 关联 |
 | 自定义鉴权 | Edge Function | Supabase Auth | 手机号验证通过后由服务端创建 / 查找用户并签发会话 |
-| 推送 | Worker push\_send | iOS 用 APNs；安卓用国内推送聚合（如个推、极光等，覆盖各厂商通道） | 国内安卓设备普遍无法使用 Google 推送通道，不能只依赖 Expo 默认推送 |
+| 推送 | Worker push\_send | 内测：iOS 用 APNs + 站内消息；正式版前接入安卓国内推送聚合（如个推、极光等，覆盖各厂商通道） | 国内安卓设备普遍无法使用 Google 推送通道，不能只依赖 Expo 默认推送 |
 | 苹果内购 | expo-iap / react-native-iap + iap-verify | App Store 内购 | 首期为非续期商品；服务端校验收据；支持恢复购买 |
 | 安卓支付 | pay-create / pay-notify | 微信支付、支付宝 App 支付 | 正式版启用；内测期只用兑换码 |
 | OCR | Worker ocr\_answer / parse\_material | 云 OCR（含手写识别）或多模态模型 | 需返回字符级置信度，用于标出不确定字词 |
@@ -535,7 +577,7 @@ shuati/
 | 学习记录 | user\_kp\_state, attempts, gradings, wrong\_items, recite\_logs, daily\_plans, essays 及批改 | 仅本人 | 禁止（全部经函数） |
 | 用户设置 | profiles（非敏感字段）, study\_settings, devices | 仅本人 | 仅本人，限定字段 |
 | 商业化 | memberships, usage\_counters, orders | 仅本人 | 禁止 |
-| 运营数据 | redeem\_codes, content\_reports, feedbacks, ai\_calls, rule\_params | 禁止（feedbacks 仅本人可读自己的） | 禁止 |
+| 运营数据 | redeem\_codes, content\_reports, feedbacks, ai\_calls, rule\_params, admin\_users, admin\_audit\_logs, deleted\_phones | 禁止（feedbacks 仅本人可读自己的；rule\_params、exam\_calendar 所有登录用户可读） | 禁止（运营后台经 admin-\* 函数写） |
 
 ### 10.2 存储与密钥
 
@@ -547,7 +589,7 @@ shuati/
 ### 10.3 数据合规
 
 - 用户资料不用于其他用户、不用于模型训练；向模型供应商调用时选择不留存数据的接口选项（如供应商提供）
-- 注销：申请后 7 天冷静期，期满由 cleanup 任务删除该用户全部行与存储文件，保留匿名化的计费与审计记录
+- 注销：申请后 7 天冷静期，期满由 cleanup 任务删除该用户全部行与存储文件，保留匿名化的计费与审计记录；手机号只以哈希写入 deleted\_phones 保留 30 天（禁止同号再注册），并写入隐私政策
 - 数据驻留：内测期使用 Supabase 云（境外区域）只适合小范围测试；面向国内正式上线前，数据库、存储、Worker 需迁移到境内云，并按个人信息保护相关规定评估，上线前咨询确认
 - AI 输出统一标注来源，协议中说明 AI 内容仅供学习参考
 
@@ -563,7 +605,7 @@ shuati/
 
 ### 11.1 发布流程
 
-1. 合并到 main → CI 跑类型检查、单元测试（packages/rules 必须全绿）、数据库迁移检查
+1. 合并到 main → CI（GitHub Actions）跑类型检查、单元测试（packages/rules 必须全绿）、数据库迁移检查
 2. 改动涉及 packages/ai → 自动跑评测集，任一指标低于门槛则阻止发布（见第 12 节）
 3. 部署 staging：执行迁移、部署 Edge Functions 与 Worker、出 preview 包，团队验收
 4. 部署 prod：迁移 → 函数 → Worker → 客户端；客户端强制更新时在 `app_versions` 表标记最低版本
@@ -612,6 +654,7 @@ shuati/
 
 | 事项 | 需要决定 | 影响范围 | 建议 |
 | --- | --- | --- | --- |
+| Worker 部署位置（T05 前） | Worker 常驻服务部署在哪（如 Fly.io、Railway 或国内云容器）；定时任务建议用 pg\_cron 入队 | Worker、定时任务 | 待定（审阅清单 D14） |
 | 正式版部署位置 | 境内云自托管 Supabase，还是换成国内云原生服务 | 数据库、存储、Worker、鉴权 | 内测用 Supabase 云，代码只依赖标准 Postgres 与 S3 兼容存储，保持可迁移 |
 | 大模型供应商 | 批改、建库用哪家；是否分档使用不同模型 | packages/ai 配置、成本、备案 | 用评测集对 2–3 家候选跑分后决定 |
 | 一键登录与短信服务商 | 具体厂商 | 登录模块 | 选同一家云，减少对接 |

@@ -1,12 +1,12 @@
 # 开工指南（给团队看的，不是给 Claude Code 的）
 
-## 1. 放文件
-1. 新建空仓库 shuati，把本压缩包内容解压到仓库根目录
-2. 从三份 Claude Doc 导出 Markdown（打开文档 → 点文档名 → Export → Markdown），分别存为：
-   - docs/prd.md          ← 刷题精灵 产品需求文档（PRD）v1
-   - docs/tech-spec.md    ← 刷题精灵 技术规格文档 v1
-   - docs/construction.md ← 刷题精灵 施工文档 v1
-3. git add . && git commit -m "docs: 项目文档与视觉稿"
+## 1. 放文件（已完成）
+仓库 PEETraining 中已就位：
+   - docs/prd.md          ← 考研Training 产品需求文档（PRD）v1
+   - docs/tech-spec.md    ← 考研Training 技术规格文档 v1
+   - docs/construction.md ← 考研Training 施工文档 v1
+   - docs/design/         ← 视觉稿源码、索引与交互说明
+   - docs/open-questions.md ← 文档审阅清单（矛盾、缺失、团队结论）
 
 ## 2. 第一次对话（只做一次）
 在仓库根目录启动 Claude Code，发送：
@@ -17,7 +17,7 @@
     2. 你认为文档之间有矛盾或缺失的地方
     3. 在开始 T01 之前需要我提供的账号、密钥或决定
     
-## 3. 每张任务卡（重复 49 次）
+## 3. 每张任务卡（重复 50 次）
 开新会话（或 /clear），发送：
 
     执行任务卡 T01「仓库与工程骨架」。
@@ -30,7 +30,7 @@
 把 T01 和卡片名换成当前卡片即可。
 
 ## 4. 节奏建议
-- 一张卡一个分支；验收通过再合并，再开下一张
+- 一张卡一个分支（card/T01-<英文短名>）；GitHub Actions CI 与真机验收通过再合并，再开下一张
 - 计划阶段多看一眼：Claude Code 想新增表、改规则、引入新依赖时，确认是否符合文档
 - 卡片之间用新会话，避免上下文过长导致遗忘约定
 - 可以并行的卡（见施工文档第 2 节）可以开多个终端各自处理，但不要同时改同一个模块
