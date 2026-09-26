@@ -2,9 +2,9 @@
 
 ## 1. 放文件（已完成）
 仓库 PEETraining 中已就位：
-   - docs/prd.md          ← 刷题精灵 产品需求文档（PRD）v1
-   - docs/tech-spec.md    ← 刷题精灵 技术规格文档 v1
-   - docs/construction.md ← 刷题精灵 施工文档 v1
+   - docs/prd.md          ← 考研Training 产品需求文档（PRD）v1
+   - docs/tech-spec.md    ← 考研Training 技术规格文档 v1
+   - docs/construction.md ← 考研Training 施工文档 v1
    - docs/design/         ← 视觉稿源码、索引与交互说明
    - docs/open-questions.md ← 文档审阅清单（矛盾、缺失、团队结论）
 
@@ -17,7 +17,7 @@
     2. 你认为文档之间有矛盾或缺失的地方
     3. 在开始 T01 之前需要我提供的账号、密钥或决定
     
-## 3. 每张任务卡（重复 49 次）
+## 3. 每张任务卡（重复 50 次）
 开新会话（或 /clear），发送：
 
     执行任务卡 T01「仓库与工程骨架」。

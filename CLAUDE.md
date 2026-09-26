@@ -1,11 +1,11 @@
-# 刷题精灵 · 项目上下文
+# 考研Training · 项目上下文
 
 考研专业课 AI 刷题 App。帮考生把专业课资料变成可练、可测、可追踪的知识体系。
 首期试点：海南大学 · 中国语言文学（预设路径）；其他院校专业上传资料生成专属知识库（自建路径）。
 
 ## 应用标识
 - App 名称（暂定）：考研Training
-- iOS Bundle ID（暂定）：peetraining.dreamerlab.cn；Android 包名待定
+- iOS Bundle ID / Android 包名（暂定）：peetraining.dreamerlab.cn
 - 工作区包名前缀：@peetraining/*（如 @peetraining/shared、@peetraining/rules）
 - EAS 账号 / 组织：待补充
 
@@ -29,6 +29,7 @@
 ## 目录（运行环境统一 Node 22 LTS，CI 用 GitHub Actions）
 - apps/mobile        App
 - apps/worker        异步任务（解析、建库、批改、推送、定时任务）
+- apps/admin         运营后台（React + Vite，写操作只经 admin-* Edge Functions）
 - supabase/          migrations（SQL，唯一的改库方式）、functions、seed
 - packages/shared    类型、zod schema、错误码
 - packages/rules     掌握度 / 复习 / 今日计划等纯函数（客户端与服务端共用）
