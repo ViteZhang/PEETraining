@@ -1,0 +1,16 @@
+{
+  "name": "@peetraining/worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "异步任务服务：解析、建库、批改、推送、定时任务",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peetraining/shared": "workspace:*"
+  }
+}
